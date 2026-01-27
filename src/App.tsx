@@ -34,13 +34,15 @@ function App() {
   const gameRef = useRef(game);
   const hasRestoredRef = useRef(false);
 
-  // Difficulty mapping: 1-5
+  // Difficulty mapping: 1-7
   const levels = [
-    { skill: 0, depth: 1 },
-    { skill: 5, depth: 5 },
-    { skill: 10, depth: 10 },
-    { skill: 15, depth: 15 },
-    { skill: 20, depth: 20 },
+    { skill: 0, depth: 1 },    // 1: Beginner
+    { skill: 3, depth: 3 },    // 2: Novice
+    { skill: 7, depth: 7 },    // 3: Intermediate
+    { skill: 11, depth: 11 },  // 4: Advanced
+    { skill: 15, depth: 15 },  // 5: Expert
+    { skill: 18, depth: 18 },  // 6: Master
+    { skill: 20, depth: 20 },  // 7: Grandmaster
   ];
 
   const currentLevel = levels[difficulty - 1] || levels[0];
@@ -49,7 +51,7 @@ function App() {
   useEffect(() => {
     if (level) {
       const levelNum = parseInt(level, 10);
-      if (levelNum >= 1 && levelNum <= 5) {
+      if (levelNum >= 1 && levelNum <= 7) {
         setDifficulty(levelNum);
       }
     }
@@ -257,7 +259,7 @@ function App() {
   };
 
   const handleNextLevel = () => {
-    const nextLevel = Math.min(difficulty + 1, 5);
+    const nextLevel = Math.min(difficulty + 1, 7);
     navigate(`?level=${nextLevel}`);
     setDifficulty(nextLevel);
     resetGame();
@@ -353,10 +355,12 @@ function App() {
                         }}
                         >
                         <option value="1">1 - Beginner</option>
-                        <option value="2">2 - Easy</option>
+                        <option value="2">2 - Novice</option>
                         <option value="3">3 - Intermediate</option>
                         <option value="4">4 - Advanced</option>
-                        <option value="5">5 - Master</option>
+                        <option value="5">5 - Expert</option>
+                        <option value="6">6 - Master</option>
+                        <option value="7">7 - Grandmaster</option>
                         </select>
                     </div>
                     <div className="control-row">

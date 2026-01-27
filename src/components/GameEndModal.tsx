@@ -8,7 +8,7 @@ interface GameEndModalProps {
   onNextLevel: () => void;
 }
 
-const difficultyNames = ['Beginner', 'Easy', 'Intermediate', 'Advanced', 'Master'];
+const difficultyNames = ['Beginner', 'Novice', 'Intermediate', 'Advanced', 'Expert', 'Master', 'Grandmaster'];
 
 const GameEndModal: React.FC<GameEndModalProps> = ({
   isOpen,
@@ -20,7 +20,7 @@ const GameEndModal: React.FC<GameEndModalProps> = ({
   if (!isOpen) return null;
 
   const difficultyName = difficultyNames[difficulty - 1] || 'Unknown';
-  const isMaxLevel = difficulty === 5;
+  const isMaxLevel = difficulty === 7;
 
   return (
     <div className="modal-backdrop" onClick={onTryAgain}>
