@@ -40,7 +40,7 @@ function App() {
 
   // Initialize Engine
   useEffect(() => {
-    engineRef.current = new Engine('/stockfish.js');
+    engineRef.current = new Engine(import.meta.env.BASE_URL + 'stockfish.js');
     engineRef.current.onEngineMessage((msg) => {
       if (msg.startsWith('bestmove')) {
         const move = msg.split(' ')[1];
