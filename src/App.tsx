@@ -1,0 +1,308 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Canvas } from '@react-three/fiber';
+import { PerspectiveCamera, Environment, ContactShadows } from '@react-three/drei';
+import { Chess, type Square } from 'chess.js';
+import Engine from './chess/engine';
+import { getStatus, createGame, validateMove } from './chess/logic';
+import ChessScene from './components/ChessScene';
+import CameraController from './components/CameraController';
+
+function App() {
+  const [game, setGame] = useState(new Chess());
+  const [difficulty, setDifficulty] = useState(1);
+  const [status, setStatus] = useState('Your turn (White)');
+  const [moveHistory, setMoveHistory] = useState<string[]>([]);
+  const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
+  const [validMoves, setValidMoves] = useState<string[]>([]);
+  const [showCoordinates, setShowCoordinates] = useState(true);
+  const [isTwoPlayer, setIsTwoPlayer] = useState(false);
+  const [playerColor, setPlayerColor] = useState<'w' | 'b'>('w');
+  const [autoRotate, setAutoRotate] = useState(true);
+  
+  const engineRef = useRef<Engine | null>(null);
+  const gameRef = useRef(game);
+
+  // Difficulty mapping: 1-5
+  const levels = [
+    { skill: 0, depth: 1 },
+    { skill: 5, depth: 5 },
+    { skill: 10, depth: 10 },
+    { skill: 15, depth: 15 },
+    { skill: 20, depth: 20 },
+  ];
+
+  const currentLevel = levels[difficulty - 1] || levels[0];
+
+  // Keep gameRef in sync to avoid stale closures in engine callbacks
+  useEffect(() => {
+    gameRef.current = game;
+  }, [game]);
+
+  // Initialize Engine
+  useEffect(() => {
+    engineRef.current = new Engine('/stockfish.js');
+    engineRef.current.onEngineMessage((msg) => {
+      if (msg.startsWith('bestmove')) {
+        const move = msg.split(' ')[1];
+        if (move && move !== '(none)') {
+          const gameCopy = new Chess(gameRef.current.fen());
+          try {
+            const result = gameCopy.move(move);
+            if (result) {
+              setGame(gameCopy);
+              setMoveHistory(prev => [...prev, result.san]);
+              setStatus(getStatus(gameCopy, playerColor, isTwoPlayer));
+            }
+          } catch (e) {
+            console.error("AI move error:", e);
+          }
+        }
+      }
+    });
+
+    return () => {
+      engineRef.current?.quit();
+    };
+  }, []);
+
+  // Update engine options when difficulty changes
+  useEffect(() => {
+    if (engineRef.current) {
+      engineRef.current.sendMessage(`setoption name Skill Level value ${currentLevel.skill}`);
+    }
+  }, [difficulty]);
+
+  // Trigger AI move when it's not the player's turn (Single player only)
+  useEffect(() => {
+    if (!isTwoPlayer && game.turn() !== playerColor && !game.isGameOver()) {
+      setStatus('Computer is thinking...');
+      setTimeout(() => {
+        engineRef.current?.sendMessage('isready');
+        engineRef.current?.evaluatePosition(game.fen(), currentLevel.depth);
+      }, 500);
+    } else if (isTwoPlayer && !game.isGameOver()) {
+      setStatus(`${game.turn() === 'w' ? 'White' : 'Black'}'s turn`);
+    } else if (!isTwoPlayer && !game.isGameOver()) {
+       setStatus(`Your turn (${playerColor === 'w' ? 'White' : 'Black'})`);
+    }
+  }, [game, isTwoPlayer, playerColor]);
+
+  const onSquareClick = useCallback((square: string) => {
+    if (game.isGameOver()) return;
+    if (!isTwoPlayer && game.turn() !== playerColor) return;
+
+    // Handle selection
+    if (selectedSquare === null) {
+      const piece = game.get(square as Square);
+      if (piece && (isTwoPlayer ? piece.color === game.turn() : piece.color === playerColor)) {
+        setSelectedSquare(square);
+        const moves = game.moves({ square: square as Square, verbose: true });
+        setValidMoves(moves.map(m => m.to));
+      }
+    } else {
+      // Handle move
+      const move = validateMove(game, {
+        from: selectedSquare,
+        to: square,
+        promotion: 'q',
+      });
+
+      if (move) {
+        const gameCopy = new Chess(game.fen());
+        gameCopy.move(move);
+        setGame(gameCopy);
+        setMoveHistory(prev => [...prev, move.san]);
+        setStatus(getStatus(gameCopy, playerColor, isTwoPlayer));
+        setSelectedSquare(null);
+        setValidMoves([]);
+      } else {
+        // Change selection if clicking another of player's pieces
+        const piece = game.get(square as Square);
+        if (piece && (isTwoPlayer ? piece.color === game.turn() : piece.color === playerColor)) {
+          setSelectedSquare(square);
+          const moves = game.moves({ square: square as Square, verbose: true });
+          setValidMoves(moves.map(m => m.to));
+        } else {
+          setSelectedSquare(null);
+          setValidMoves([]);
+        }
+      }
+    }
+  }, [game, selectedSquare]);
+
+  const resetGame = () => {
+    const newGame = createGame();
+    setGame(newGame);
+    setMoveHistory([]);
+    setStatus(getStatus(newGame, playerColor, isTwoPlayer));
+    setSelectedSquare(null);
+    setValidMoves([]);
+    engineRef.current?.sendMessage('ucinewgame');
+  };
+
+  const undoMove = () => {
+    const undoCount = isTwoPlayer ? 1 : 2;
+    if (moveHistory.length < undoCount) return;
+    
+    const newHistory = moveHistory.slice(0, -undoCount);
+    const newGame = new Chess();
+    for (const move of newHistory) {
+      newGame.move(move);
+    }
+    
+    setGame(newGame);
+    setMoveHistory(newHistory);
+    setStatus(getStatus(newGame, playerColor, isTwoPlayer));
+    setSelectedSquare(null);
+    setValidMoves([]);
+  };
+
+  return (
+    <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
+      <Canvas shadows>
+        <PerspectiveCamera makeDefault position={[0, 8, 10]} fov={45} />
+        <CameraController 
+          turn={game.turn()} 
+          playerColor={playerColor} 
+          isTwoPlayer={isTwoPlayer} 
+          autoRotate={autoRotate} 
+        />
+        
+        <ambientLight intensity={0.5} />
+        <spotLight position={[10, 15, 10]} angle={0.25} penumbra={1} intensity={1} castShadow />
+        <Environment preset="city" />
+        <ContactShadows position={[0, -0.05, 0]} opacity={0.4} scale={20} blur={2} />
+
+        <ChessScene 
+          key={game.fen()}
+          game={game} 
+          onSquareClick={onSquareClick} 
+          selectedSquare={selectedSquare}
+          validMoves={validMoves}
+          showCoordinates={showCoordinates}
+        />
+      </Canvas>
+
+      {/* HUD Layer */}
+      <div className="hud-container">
+        <div className="top-bar">
+          <div className="glass-panel title-section">
+            <h1>GRANDMASTER 3D</h1>
+          </div>
+          <div className="top-right-group">
+            {!isTwoPlayer && (
+              <div className="glass-panel difficulty-badge">
+                <span>Difficulty:</span>
+                <select 
+                  value={difficulty} 
+                  onChange={(e) => setDifficulty(parseInt(e.target.value))}
+                >
+                  <option value="1">1 - Beginner</option>
+                  <option value="2">2 - Easy</option>
+                  <option value="3">3 - Intermediate</option>
+                  <option value="4">4 - Advanced</option>
+                  <option value="5">5 - Master</option>
+                </select>
+              </div>
+            )}
+            
+            <div className="glass-panel toggle-section">
+              <label className="toggle-label">
+                <input 
+                  type="checkbox" 
+                  checked={isTwoPlayer} 
+                  onChange={(e) => {
+                    setIsTwoPlayer(e.target.checked);
+                    // Reset game or update status when switching modes
+                    setStatus(getStatus(game, playerColor, e.target.checked));
+                  }} 
+                />
+                <span>Two Players</span>
+              </label>
+            </div>
+
+            {!isTwoPlayer && (
+              <div className="glass-panel difficulty-badge">
+                <span>Play as:</span>
+                <select 
+                  value={playerColor} 
+                  onChange={(e) => {
+                    const newColor = e.target.value as 'w' | 'b';
+                    setPlayerColor(newColor);
+                    // Reset game when changing color to ensure correct start
+                    const newGame = createGame();
+                    setGame(newGame);
+                    setMoveHistory([]);
+                    setStatus(getStatus(newGame, newColor, isTwoPlayer));
+                    setSelectedSquare(null);
+                    setValidMoves([]);
+                    engineRef.current?.sendMessage('ucinewgame');
+                  }}
+                >
+                  <option value="w">White</option>
+                  <option value="b">Black</option>
+                </select>
+              </div>
+            )}
+
+            {isTwoPlayer && (
+              <div className="glass-panel toggle-section">
+                <label className="toggle-label">
+                  <input 
+                    type="checkbox" 
+                    checked={autoRotate} 
+                    onChange={(e) => setAutoRotate(e.target.checked)} 
+                  />
+                  <span>Auto Rotate</span>
+                </label>
+              </div>
+            )}
+
+            <div className="glass-panel toggle-section">
+              <label className="toggle-label">
+                <input 
+                  type="checkbox" 
+                  checked={showCoordinates} 
+                  onChange={(e) => setShowCoordinates(e.target.checked)} 
+                />
+                <span>Coordinates</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div className="side-panel">
+          <div className="glass-panel status-card">
+            <h3>Game Status</h3>
+            <p className="status-text">{status}</p>
+          </div>
+
+          <div className="glass-panel history-section">
+            <h3>History</h3>
+            <div className="history-list">
+              {moveHistory.map((move, i) => (
+                <span key={i} className="move-tag">
+                  {i % 2 === 0 ? `${Math.floor(i/2) + 1}. ` : ''}{move}
+                </span>
+              ))}
+              {moveHistory.length === 0 && <span style={{color: '#666'}}>No moves yet</span>}
+            </div>
+          </div>
+
+          <div className="controls">
+            <button onClick={resetGame} className="btn-primary">New Game</button>
+            <button 
+              onClick={undoMove} 
+              className="btn-secondary"
+              disabled={moveHistory.length < (isTwoPlayer ? 1 : 2) || (!isTwoPlayer && game.turn() !== playerColor)}
+            >
+              Undo
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default App;

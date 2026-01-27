@@ -1,0 +1,190 @@
+import { useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
+import * as THREE from 'three';
+
+interface Piece3DProps {
+  type: string;
+  color: string;
+  position: [number, number, number];
+  isSelected?: boolean;
+}
+
+const Piece3D: React.FC<Piece3DProps> = ({ type, color, position, isSelected }) => {
+  const meshRef = useRef<THREE.Group>(null);
+  const baseColor = color === 'w' ? '#f0f0f0' : '#404040';
+  const highlightColor = '#ffff00';
+
+  // Floating animation for selected piece
+  useFrame((state) => {
+    if (isSelected && meshRef.current) {
+      meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 5) * 0.2 + 0.2;
+    }
+  });
+
+  const material = <meshStandardMaterial color={isSelected ? highlightColor : baseColor} roughness={0.3} metalness={0.4} />;
+  
+  // Common base for all pieces
+  const renderBase = () => (
+    <group>
+      <mesh position={[0, 0.05, 0]}>
+        <cylinderGeometry args={[0.4, 0.45, 0.1, 32]} />
+        {material}
+      </mesh>
+      <mesh position={[0, 0.01, 0]}>
+        <cylinderGeometry args={[0.42, 0.42, 0.02, 32]} />
+        <meshStandardMaterial color="#1a4d1a" roughness={0.9} /> {/* Felt base */}
+      </mesh>
+    </group>
+  );
+
+  const renderShape = () => {
+    switch (type.toLowerCase()) {
+      case 'p': { // Pawn
+        const points = [
+          new THREE.Vector2(0.4, 0),
+          new THREE.Vector2(0.35, 0.2),
+          new THREE.Vector2(0.2, 0.4),
+          new THREE.Vector2(0.25, 0.5),
+          new THREE.Vector2(0, 0.7)
+        ];
+        return (
+          <group>
+            {renderBase()}
+            <mesh position={[0, 0.1, 0]}>
+              <latheGeometry args={[points, 32]} />
+              {material}
+            </mesh>
+            <mesh position={[0, 0.75, 0]}>
+              <sphereGeometry args={[0.25, 32, 32]} />
+              {material}
+            </mesh>
+          </group>
+        );
+      }
+      case 'r': { // Rook
+        const points = [
+          new THREE.Vector2(0.4, 0),
+          new THREE.Vector2(0.35, 0.2),
+          new THREE.Vector2(0.3, 0.8),
+          new THREE.Vector2(0.4, 0.8),
+          new THREE.Vector2(0.4, 1.0),
+          new THREE.Vector2(0, 1.0)
+        ];
+        return (
+          <group>
+            {renderBase()}
+            <mesh position={[0, 0.1, 0]}>
+              <latheGeometry args={[points, 32]} />
+              {material}
+            </mesh>
+          </group>
+        );
+      }
+      case 'n': { // Knight
+        return (
+          <group>
+            {renderBase()}
+            <mesh position={[0, 0.4, 0]}>
+              <cylinderGeometry args={[0.3, 0.4, 0.6, 32]} />
+              {material}
+            </mesh>
+            <mesh position={[0, 0.8, 0.1]} rotation={[-0.4, 0, 0]}>
+              <boxGeometry args={[0.4, 0.6, 0.7]} />
+              {material}
+            </mesh>
+            <mesh position={[0, 1.0, 0.35]} rotation={[0.5, 0, 0]}>
+              <boxGeometry args={[0.3, 0.3, 0.4]} />
+              {material}
+            </mesh>
+          </group>
+        );
+      }
+      case 'b': { // Bishop
+        const points = [
+          new THREE.Vector2(0.4, 0),
+          new THREE.Vector2(0.35, 0.2),
+          new THREE.Vector2(0.2, 0.9),
+          new THREE.Vector2(0, 1.3)
+        ];
+        return (
+          <group>
+            {renderBase()}
+            <mesh position={[0, 0.1, 0]}>
+              <latheGeometry args={[points, 32]} />
+              {material}
+            </mesh>
+            <mesh position={[0, 1.35, 0]}>
+              <sphereGeometry args={[0.08, 16, 16]} />
+              {material}
+            </mesh>
+          </group>
+        );
+      }
+      case 'q': { // Queen
+        const points = [
+          new THREE.Vector2(0.4, 0),
+          new THREE.Vector2(0.35, 0.2),
+          new THREE.Vector2(0.2, 1.1),
+          new THREE.Vector2(0.35, 1.25),
+          new THREE.Vector2(0, 1.25)
+        ];
+        return (
+          <group>
+            {renderBase()}
+            <mesh position={[0, 0.1, 0]}>
+              <latheGeometry args={[points, 32]} />
+              {material}
+            </mesh>
+            {/* Crown points */}
+            <mesh position={[0, 1.35, 0]}>
+              <cylinderGeometry args={[0.3, 0.25, 0.2, 8, 1, true]} />
+              {material}
+            </mesh>
+            <mesh position={[0, 1.45, 0]}>
+              <sphereGeometry args={[0.08, 16, 16]} />
+              {material}
+            </mesh>
+          </group>
+        );
+      }
+      case 'k': { // King
+        const points = [
+          new THREE.Vector2(0.4, 0),
+          new THREE.Vector2(0.35, 0.2),
+          new THREE.Vector2(0.25, 1.3),
+          new THREE.Vector2(0.4, 1.4),
+          new THREE.Vector2(0, 1.4)
+        ];
+        return (
+          <group>
+            {renderBase()}
+            <mesh position={[0, 0.1, 0]}>
+              <latheGeometry args={[points, 32]} />
+              {material}
+            </mesh>
+            <group position={[0, 1.6, 0]}>
+              <mesh>
+                <boxGeometry args={[0.1, 0.4, 0.1]} />
+                {material}
+              </mesh>
+              <mesh rotation={[0, 0, Math.PI / 2]}>
+                <boxGeometry args={[0.1, 0.3, 0.1]} />
+                {material}
+              </mesh>
+            </group>
+          </group>
+        );
+      }
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <group ref={meshRef} position={position}>
+      {renderShape()}
+    </group>
+  );
+};
+
+export default Piece3D;
