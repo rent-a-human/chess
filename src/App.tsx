@@ -18,6 +18,7 @@ function App() {
   const [isTwoPlayer, setIsTwoPlayer] = useState(false);
   const [playerColor, setPlayerColor] = useState<'w' | 'b'>('w');
   const [autoRotate, setAutoRotate] = useState(true);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   
   const engineRef = useRef<Engine | null>(null);
   const gameRef = useRef(game);
@@ -157,6 +158,16 @@ function App() {
     setValidMoves([]);
   };
 
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  };
+
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
       <Canvas shadows>
@@ -189,115 +200,136 @@ function App() {
           <div className="glass-panel title-section">
             <h1>GRANDMASTER 3D</h1>
           </div>
-          <div className="top-right-group">
-            {!isTwoPlayer && (
-              <div className="glass-panel difficulty-badge">
-                <span>Difficulty:</span>
-                <select 
-                  value={difficulty} 
-                  onChange={(e) => setDifficulty(parseInt(e.target.value))}
-                >
-                  <option value="1">1 - Beginner</option>
-                  <option value="2">2 - Easy</option>
-                  <option value="3">3 - Intermediate</option>
-                  <option value="4">4 - Advanced</option>
-                  <option value="5">5 - Master</option>
-                </select>
-              </div>
-            )}
-            
-            <div className="glass-panel toggle-section">
-              <label className="toggle-label">
-                <input 
-                  type="checkbox" 
-                  checked={isTwoPlayer} 
-                  onChange={(e) => {
-                    setIsTwoPlayer(e.target.checked);
-                    // Reset game or update status when switching modes
-                    setStatus(getStatus(game, playerColor, e.target.checked));
-                  }} 
-                />
-                <span>Two Players</span>
-              </label>
-            </div>
-
-            {!isTwoPlayer && (
-              <div className="glass-panel difficulty-badge">
-                <span>Play as:</span>
-                <select 
-                  value={playerColor} 
-                  onChange={(e) => {
-                    const newColor = e.target.value as 'w' | 'b';
-                    setPlayerColor(newColor);
-                    // Reset game when changing color to ensure correct start
-                    const newGame = createGame();
-                    setGame(newGame);
-                    setMoveHistory([]);
-                    setStatus(getStatus(newGame, newColor, isTwoPlayer));
-                    setSelectedSquare(null);
-                    setValidMoves([]);
-                    engineRef.current?.sendMessage('ucinewgame');
-                  }}
-                >
-                  <option value="w">White</option>
-                  <option value="b">Black</option>
-                </select>
-              </div>
-            )}
-
-            {isTwoPlayer && (
-              <div className="glass-panel toggle-section">
-                <label className="toggle-label">
-                  <input 
-                    type="checkbox" 
-                    checked={autoRotate} 
-                    onChange={(e) => setAutoRotate(e.target.checked)} 
-                  />
-                  <span>Auto Rotate</span>
-                </label>
-              </div>
-            )}
-
-            <div className="glass-panel toggle-section">
-              <label className="toggle-label">
-                <input 
-                  type="checkbox" 
-                  checked={showCoordinates} 
-                  onChange={(e) => setShowCoordinates(e.target.checked)} 
-                />
-                <span>Coordinates</span>
-              </label>
-            </div>
+          <div className="top-actions">
+             <button className="icon-btn" onClick={toggleFullscreen} aria-label="Toggle Fullscreen">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+              </svg>
+            </button>
+            <button className="icon-btn menu-toggle" onClick={() => setIsMenuOpen(!isMenuOpen)} aria-label="Toggle Menu">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 12h18M3 6h18M3 18h18" />
+              </svg>
+            </button>
           </div>
         </div>
 
-        <div className="side-panel">
-          <div className="glass-panel status-card">
-            <h3>Game Status</h3>
-            <p className="status-text">{status}</p>
+        <div className={`side-panel ${isMenuOpen ? 'open' : ''}`}>
+          <div className="panel-header">
+             <h2>Controls</h2>
+             <button className="icon-btn close-btn" onClick={() => setIsMenuOpen(false)}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+             </button>
           </div>
 
-          <div className="glass-panel history-section">
-            <h3>History</h3>
-            <div className="history-list">
-              {moveHistory.map((move, i) => (
-                <span key={i} className="move-tag">
-                  {i % 2 === 0 ? `${Math.floor(i/2) + 1}. ` : ''}{move}
-                </span>
-              ))}
-              {moveHistory.length === 0 && <span style={{color: '#666'}}>No moves yet</span>}
+          <div className="scrollable-content">
+            <div className="glass-panel status-card">
+              <h3>Game Status</h3>
+              <p className="status-text">{status}</p>
             </div>
-          </div>
 
-          <div className="controls">
-            <button onClick={resetGame} className="btn-primary">New Game</button>
-            <button 
-              onClick={undoMove} 
-              className="btn-secondary"
-              disabled={moveHistory.length < (isTwoPlayer ? 1 : 2) || (!isTwoPlayer && game.turn() !== playerColor)}
-            >
-              Undo
-            </button>
+            <div className="glass-panel section-group">
+                <div className="toggle-section">
+                <label className="toggle-label">
+                    <input 
+                    type="checkbox" 
+                    checked={isTwoPlayer} 
+                    onChange={(e) => {
+                        setIsTwoPlayer(e.target.checked);
+                        setStatus(getStatus(game, playerColor, e.target.checked));
+                    }} 
+                    />
+                    <span>Two Players</span>
+                </label>
+                </div>
+
+                {!isTwoPlayer && (
+                 <>
+                    <div className="control-row">
+                        <span>Difficulty</span>
+                        <select 
+                        value={difficulty} 
+                        onChange={(e) => setDifficulty(parseInt(e.target.value))}
+                        >
+                        <option value="1">1 - Beginner</option>
+                        <option value="2">2 - Easy</option>
+                        <option value="3">3 - Intermediate</option>
+                        <option value="4">4 - Advanced</option>
+                        <option value="5">5 - Master</option>
+                        </select>
+                    </div>
+                    <div className="control-row">
+                        <span>Play as</span>
+                        <select 
+                        value={playerColor} 
+                        onChange={(e) => {
+                            const newColor = e.target.value as 'w' | 'b';
+                            setPlayerColor(newColor);
+                            const newGame = createGame();
+                            setGame(newGame);
+                            setMoveHistory([]);
+                            setStatus(getStatus(newGame, newColor, isTwoPlayer));
+                            setSelectedSquare(null);
+                            setValidMoves([]);
+                            engineRef.current?.sendMessage('ucinewgame');
+                        }}
+                        >
+                        <option value="w">White</option>
+                        <option value="b">Black</option>
+                        </select>
+                    </div>
+                 </>
+                )}
+
+                {isTwoPlayer && (
+                <div className="toggle-section">
+                    <label className="toggle-label">
+                    <input 
+                        type="checkbox" 
+                        checked={autoRotate} 
+                        onChange={(e) => setAutoRotate(e.target.checked)} 
+                    />
+                    <span>Auto Rotate</span>
+                    </label>
+                </div>
+                )}
+
+                <div className="toggle-section">
+                <label className="toggle-label">
+                    <input 
+                    type="checkbox" 
+                    checked={showCoordinates} 
+                    onChange={(e) => setShowCoordinates(e.target.checked)} 
+                    />
+                    <span>Show Coordinates</span>
+                </label>
+                </div>
+            </div>
+
+            <div className="glass-panel history-section">
+                <h3>History</h3>
+                <div className="history-list">
+                {moveHistory.map((move, i) => (
+                    <span key={i} className="move-tag">
+                    {i % 2 === 0 ? `${Math.floor(i/2) + 1}. ` : ''}{move}
+                    </span>
+                ))}
+                {moveHistory.length === 0 && <span style={{color: '#666'}}>No moves yet</span>}
+                </div>
+            </div>
+            
+            <div className="controls">
+                <button onClick={resetGame} className="btn-primary">New Game</button>
+                <button 
+                onClick={undoMove} 
+                className="btn-secondary"
+                disabled={moveHistory.length < (isTwoPlayer ? 1 : 2) || (!isTwoPlayer && game.turn() !== playerColor)}
+                >
+                Undo
+                </button>
+            </div>
           </div>
         </div>
       </div>
