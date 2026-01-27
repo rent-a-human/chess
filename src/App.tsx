@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Canvas } from '@react-three/fiber';
 import { PerspectiveCamera, Environment, ContactShadows } from '@react-three/drei';
 import { Chess, type Square } from 'chess.js';
@@ -12,8 +12,9 @@ import GameEndModal from './components/GameEndModal';
 const STORAGE_KEY = 'chess3d_game_state';
 
 function App() {
-  const { level } = useParams<{ level?: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const level = searchParams.get('level');
   
   const [game, setGame] = useState(new Chess());
   const [difficulty, setDifficulty] = useState(1);
@@ -257,7 +258,7 @@ function App() {
 
   const handleNextLevel = () => {
     const nextLevel = Math.min(difficulty + 1, 5);
-    navigate(`/${nextLevel}`);
+    navigate(`?level=${nextLevel}`);
     setDifficulty(nextLevel);
     resetGame();
   };
@@ -348,7 +349,7 @@ function App() {
                         onChange={(e) => {
                           const newDiff = parseInt(e.target.value);
                           setDifficulty(newDiff);
-                          navigate(`/${newDiff}`);
+                          navigate(`?level=${newDiff}`);
                         }}
                         >
                         <option value="1">1 - Beginner</option>
