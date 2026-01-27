@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Canvas } from '@react-three/fiber';
 import { PerspectiveCamera, Environment, ContactShadows } from '@react-three/drei';
 import { Chess, type Square } from 'chess.js';
@@ -6,8 +7,14 @@ import Engine from './chess/engine';
 import { getStatus, createGame, validateMove } from './chess/logic';
 import ChessScene from './components/ChessScene';
 import CameraController from './components/CameraController';
+import GameEndModal from './components/GameEndModal';
+
+const STORAGE_KEY = 'chess3d_game_state';
 
 function App() {
+  const { level } = useParams<{ level?: string }>();
+  const navigate = useNavigate();
+  
   const [game, setGame] = useState(new Chess());
   const [difficulty, setDifficulty] = useState(1);
   const [status, setStatus] = useState('Your turn (White)');
@@ -19,9 +26,12 @@ function App() {
   const [playerColor, setPlayerColor] = useState<'w' | 'b'>('w');
   const [autoRotate, setAutoRotate] = useState(true);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showEndModal, setShowEndModal] = useState(false);
+  const [gameResult, setGameResult] = useState<'win' | 'loss' | 'draw'>('win');
   
   const engineRef = useRef<Engine | null>(null);
   const gameRef = useRef(game);
+  const hasRestoredRef = useRef(false);
 
   // Difficulty mapping: 1-5
   const levels = [
@@ -34,10 +44,82 @@ function App() {
 
   const currentLevel = levels[difficulty - 1] || levels[0];
 
+  // Initialize difficulty from URL
+  useEffect(() => {
+    if (level) {
+      const levelNum = parseInt(level, 10);
+      if (levelNum >= 1 && levelNum <= 5) {
+        setDifficulty(levelNum);
+      }
+    }
+  }, [level]);
+
+  // Save game state to localStorage
+  const saveGameState = useCallback(() => {
+    const state = {
+      fen: game.fen(),
+      moveHistory,
+      difficulty,
+      playerColor,
+      isTwoPlayer,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }, [game, moveHistory, difficulty, playerColor, isTwoPlayer]);
+
+  // Restore game state from localStorage
+  useEffect(() => {
+    if (hasRestoredRef.current) return;
+    hasRestoredRef.current = true;
+
+    const savedState = localStorage.getItem(STORAGE_KEY);
+    if (savedState) {
+      try {
+        const state = JSON.parse(savedState);
+        const restoredGame = new Chess(state.fen);
+        setGame(restoredGame);
+        setMoveHistory(state.moveHistory || []);
+        setPlayerColor(state.playerColor || 'w');
+        setIsTwoPlayer(state.isTwoPlayer || false);
+        
+        // Only restore difficulty if no URL level is specified
+        if (!level && state.difficulty) {
+          setDifficulty(state.difficulty);
+        }
+      } catch (e) {
+        console.error('Failed to restore game state:', e);
+      }
+    }
+  }, []);
+
+  // Save state whenever it changes
+  useEffect(() => {
+    if (hasRestoredRef.current) {
+      saveGameState();
+    }
+  }, [game, moveHistory, difficulty, playerColor, isTwoPlayer, saveGameState]);
+
   // Keep gameRef in sync to avoid stale closures in engine callbacks
   useEffect(() => {
     gameRef.current = game;
   }, [game]);
+
+  // Check for game end
+  useEffect(() => {
+    if (game.isGameOver() && !isTwoPlayer) {
+      // Determine result
+      let result: 'win' | 'loss' | 'draw' = 'draw';
+      
+      if (game.isCheckmate()) {
+        // If it's checkmate, the current turn lost
+        result = game.turn() === playerColor ? 'loss' : 'win';
+      } else if (game.isDraw() || game.isStalemate() || game.isThreefoldRepetition() || game.isInsufficientMaterial()) {
+        result = 'draw';
+      }
+      
+      setGameResult(result);
+      setShowEndModal(true);
+    }
+  }, [game, isTwoPlayer, playerColor]);
 
   // Initialize Engine
   useEffect(() => {
@@ -71,7 +153,7 @@ function App() {
     if (engineRef.current) {
       engineRef.current.sendMessage(`setoption name Skill Level value ${currentLevel.skill}`);
     }
-  }, [difficulty]);
+  }, [difficulty, currentLevel.skill]);
 
   // Trigger AI move when it's not the player's turn (Single player only)
   useEffect(() => {
@@ -86,7 +168,7 @@ function App() {
     } else if (!isTwoPlayer && !game.isGameOver()) {
        setStatus(`Your turn (${playerColor === 'w' ? 'White' : 'Black'})`);
     }
-  }, [game, isTwoPlayer, playerColor]);
+  }, [game, isTwoPlayer, playerColor, currentLevel.depth]);
 
   const onSquareClick = useCallback((square: string) => {
     if (game.isGameOver()) return;
@@ -129,7 +211,7 @@ function App() {
         }
       }
     }
-  }, [game, selectedSquare]);
+  }, [game, selectedSquare, isTwoPlayer, playerColor]);
 
   const resetGame = () => {
     const newGame = createGame();
@@ -138,6 +220,7 @@ function App() {
     setStatus(getStatus(newGame, playerColor, isTwoPlayer));
     setSelectedSquare(null);
     setValidMoves([]);
+    setShowEndModal(false);
     engineRef.current?.sendMessage('ucinewgame');
   };
 
@@ -166,6 +249,17 @@ function App() {
         document.exitFullscreen();
       }
     }
+  };
+
+  const handleTryAgain = () => {
+    resetGame();
+  };
+
+  const handleNextLevel = () => {
+    const nextLevel = Math.min(difficulty + 1, 5);
+    navigate(`/${nextLevel}`);
+    setDifficulty(nextLevel);
+    resetGame();
   };
 
   return (
@@ -251,7 +345,11 @@ function App() {
                         <span>Difficulty</span>
                         <select 
                         value={difficulty} 
-                        onChange={(e) => setDifficulty(parseInt(e.target.value))}
+                        onChange={(e) => {
+                          const newDiff = parseInt(e.target.value);
+                          setDifficulty(newDiff);
+                          navigate(`/${newDiff}`);
+                        }}
                         >
                         <option value="1">1 - Beginner</option>
                         <option value="2">2 - Easy</option>
@@ -333,6 +431,14 @@ function App() {
           </div>
         </div>
       </div>
+
+      <GameEndModal
+        isOpen={showEndModal}
+        result={gameResult}
+        difficulty={difficulty}
+        onTryAgain={handleTryAgain}
+        onNextLevel={handleNextLevel}
+      />
     </div>
   );
 }
