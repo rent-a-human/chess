@@ -1,0 +1,18 @@
+{
+    "/gemini-api": {
+        "target": "https://generativelanguage.googleapis.com",
+        "secure": true,
+        "changeOrigin": true,
+        "pathRewrite": {
+            "^/gemini-api": ""
+        }
+    },
+    "/claude-api": {
+        "target": "https://api.anthropic.com",
+        "secure": true,
+        "changeOrigin": true,
+        "pathRewrite": {
+            "^/claude-api": ""
+        }
+    }
+}

@@ -5,7 +5,7 @@ export default class Engine {
     constructor(workerPath: string) {
         this.stockfish = new Worker(workerPath);
         this.stockfish.onmessage = (e) => {
-            console.log('Engine Message:', e.data);
+            console.log('Chess Engine Message:', e.data);
             this.onMessage(e.data);
         };
         this.sendMessage('uci');
