@@ -510,12 +510,12 @@ function App() {
         }
     ],
     llms: [
-      { name: "Claude Opus 4.5", provider: 'claude', model: 'claude-opus-4-5-20251101', apiKey: localStorage.getItem('CLAUDE_API_KEY') || import.meta.env.VITE_CLAUDE_API || '', baseUrl: '/claude-api/v1/messages' },
-      { name: "Gemini 2.5 Flash", provider: 'gemini', model: 'gemini-2.5-flash', apiKey: localStorage.getItem('GEMINI_API_KEY') || import.meta.env.VITE_GEMINI_API || '', baseUrl: '/gemini-api/v1/models' },
-      { name: "Gemini 2.5 Pro", provider: 'gemini', model: 'gemini-2.5-pro', apiKey: localStorage.getItem('GEMINI_API_KEY') || import.meta.env.VITE_GEMINI_API || '', baseUrl: '/gemini-api/v1/models' },
-      { name: "Gemini 2.0 Flash", provider: 'gemini', model: 'gemini-2.0-flash', apiKey: localStorage.getItem('GEMINI_API_KEY') || import.meta.env.VITE_GEMINI_API || '', baseUrl: '/gemini-api/v1/models' },
-      { name: "Gemini 2.0 Flash 001", provider: 'gemini', model: 'gemini-2.0-flash-001', apiKey: localStorage.getItem('GEMINI_API_KEY') || import.meta.env.VITE_GEMINI_API || '', baseUrl: '/gemini-api/v1/models' },
-      { name: "Claude 3.5 Sonnet", provider: 'claude', model: 'claude-3-5-sonnet-20240620', apiKey: localStorage.getItem('CLAUDE_API_KEY') || import.meta.env.VITE_CLAUDE_API || '', baseUrl: '/claude-api/v1/messages' }
+      { name: "Claude Opus 4.5", provider: 'claude', model: 'claude-opus-4-5-20251101', apiKey: localStorage.getItem('CLAUDE_API_KEY') || import.meta.env.VITE_CLAUDE_API || '', baseUrl: import.meta.env.DEV ? '/claude-api/v1/messages' : 'https://api.anthropic.com/v1/messages' },
+      { name: "Gemini 2.5 Flash", provider: 'gemini', model: 'gemini-2.5-flash', apiKey: localStorage.getItem('GEMINI_API_KEY') || import.meta.env.VITE_GEMINI_API || '', baseUrl: import.meta.env.DEV ? '/gemini-api/v1beta/models' : 'https://generativelanguage.googleapis.com/v1beta/models' },
+      { name: "Gemini 2.5 Pro", provider: 'gemini', model: 'gemini-2.5-pro', apiKey: localStorage.getItem('GEMINI_API_KEY') || import.meta.env.VITE_GEMINI_API || '', baseUrl: import.meta.env.DEV ? '/gemini-api/v1beta/models' : 'https://generativelanguage.googleapis.com/v1beta/models' },
+      { name: "Gemini 2.0 Flash", provider: 'gemini', model: 'gemini-2.0-flash', apiKey: localStorage.getItem('GEMINI_API_KEY') || import.meta.env.VITE_GEMINI_API || '', baseUrl: import.meta.env.DEV ? '/gemini-api/v1beta/models' : 'https://generativelanguage.googleapis.com/v1beta/models' },
+      { name: "Gemini 2.0 Flash 001", provider: 'gemini', model: 'gemini-2.0-flash-001', apiKey: localStorage.getItem('GEMINI_API_KEY') || import.meta.env.VITE_GEMINI_API || '', baseUrl: import.meta.env.DEV ? '/gemini-api/v1beta/models' : 'https://generativelanguage.googleapis.com/v1beta/models' },
+      { name: "Claude 3.5 Sonnet", provider: 'claude', model: 'claude-3-5-sonnet-20240620', apiKey: localStorage.getItem('CLAUDE_API_KEY') || import.meta.env.VITE_CLAUDE_API || '', baseUrl: import.meta.env.DEV ? '/claude-api/v1/messages' : 'https://api.anthropic.com/v1/messages' }
     ],
     endpoints: [
         {
