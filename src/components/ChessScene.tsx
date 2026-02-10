@@ -15,6 +15,8 @@ const ChessScene: React.FC<ChessSceneProps> = ({ game, onSquareClick, selectedSq
   const renderPieces = () => {
     const pieces = [];
     const board = game.board();
+    const history = game.history({ verbose: true });
+    const lastMove = history.length > 0 ? history[history.length - 1] : null;
     const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
     for (let i = 0; i < 8; i++) {
@@ -22,12 +24,25 @@ const ChessScene: React.FC<ChessSceneProps> = ({ game, onSquareClick, selectedSq
         const piece = board[i][j];
         if (piece) {
           const square = `${files[j]}${8 - i}`;
+          let animateFrom: [number, number, number] | undefined = undefined;
+
+          // Check if this piece is the one that just moved
+          if (lastMove && square === lastMove.to) {
+            const fromFile = files.indexOf(lastMove.from[0]);
+            const fromRank = 8 - parseInt(lastMove.from[1]);
+            // Calculate previous position: [x, y, z]
+            // x = fileIndex - 3.5
+            // z = rankIndex - 3.5
+            animateFrom = [fromFile - 3.5, 0.5, fromRank - 3.5];
+          }
+
           pieces.push(
             <Piece3D
-              key={square}
+              key={`${square}-${piece.type}-${piece.color}`}
               type={piece.type}
               color={piece.color}
               position={[j - 3.5, 0.5, (i - 3.5)]}
+              animateFrom={animateFrom}
               isSelected={square === selectedSquare}
               square={square}
               onSquareClick={onSquareClick}

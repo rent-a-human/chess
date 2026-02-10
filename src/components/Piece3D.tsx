@@ -6,25 +6,63 @@ interface Piece3DProps {
   type: string;
   color: string;
   position: [number, number, number];
+  animateFrom?: [number, number, number];
   isSelected?: boolean;
   square: string;
   onSquareClick: (square: string) => void;
 }
 
-const Piece3D: React.FC<Piece3DProps> = ({ type, color, position, isSelected, square, onSquareClick }) => {
+const Piece3D: React.FC<Piece3DProps> = ({ type, color, position, animateFrom, isSelected, square, onSquareClick }) => {
   const meshRef = useRef<THREE.Group>(null);
   const [hovered, setHovered] = useState(false);
+  
+  // Animation state
+  const progress = useRef(0);
+  const isAnimating = useRef(!!animateFrom);
+  const startPos = useRef(animateFrom ? new THREE.Vector3(...animateFrom) : new THREE.Vector3(...position));
+  const targetPos = useRef(new THREE.Vector3(...position));
+
+  // Update target position if prop changes (though usually component remounts for new square)
+  if (!isAnimating.current && (targetPos.current.x !== position[0] || targetPos.current.z !== position[2])) {
+     targetPos.current.set(...position);
+  }
+
   const baseColor = color === 'w' ? '#f0f0f0' : '#404040';
   const hoverColor = color === 'w' ? '#deb887' : '#5d2906'; // Wood-like tones
   const highlightColor = '#ffff00';
 
-  // Floating animation for selected piece
-  useFrame((state) => {
+  // Floating animation for selected piece & Movement interpolation
+  useFrame((state, delta) => {
     if (meshRef.current) {
-      if (isSelected) {
-        meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 5) * 0.2 + 0.2;
-      } else if (meshRef.current.position.y !== position[1]) {
-        meshRef.current.position.y = position[1];
+      if (isAnimating.current) {
+        progress.current += delta * 4; // Adjust speed here (4 = ~0.25s duration)
+        if (progress.current >= 1) {
+          progress.current = 1;
+          isAnimating.current = false;
+        }
+
+        // Ease out cubic
+        const t = 1 - Math.pow(1 - progress.current, 3);
+        
+        // Interpolate position
+        meshRef.current.position.lerpVectors(startPos.current, targetPos.current, t);
+        
+        // Add a little arc (jump) during movement
+        const jumpHeight = 0.5 * Math.sin(progress.current * Math.PI);
+        meshRef.current.position.y = position[1] + jumpHeight;
+
+      } else {
+        // Standard floating for selected state
+        if (isSelected) {
+          meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 5) * 0.2 + 0.2;
+        } else if (meshRef.current.position.y !== position[1]) {
+           // Snap to ground if not animating or selected
+           meshRef.current.position.y = position[1];
+        }
+        
+        // Ensure x/z are correct after animation ends
+        meshRef.current.position.x = position[0];
+        meshRef.current.position.z = position[2];
       }
     }
   });
