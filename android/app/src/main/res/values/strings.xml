@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Grandmaster 3D</string>
+    <string name="title_activity_main">Grandmaster 3D</string>
+    <string name="package_name">com.borischess.app</string>
+    <string name="custom_url_scheme">com.borischess.app</string>
+</resources>

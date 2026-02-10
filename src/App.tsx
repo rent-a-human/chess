@@ -10,6 +10,7 @@ import CameraController from './components/CameraController';
 import GameEndModal from './components/GameEndModal';
 import BackgroundScene from './components/BackgroundScene';
 import Agent, { type AppConfig } from 'agent-neo';
+import { AdMob, type RewardAdOptions, RewardAdPluginEvents } from '@capacitor-community/admob';
 
 const STORAGE_KEY = 'chess3d_game_state';
 
@@ -134,6 +135,58 @@ function App() {
       setShowEndModal(true);
     }
   }, [game, isTwoPlayer, playerColor]);
+
+  // Initialize AdMob
+  useEffect(() => {
+    AdMob.initialize({
+      testingDevices: ['20881AF8778AA721A20ED20510900240'], // Example test device ID
+      initializeForTesting: true,
+    });
+  }, []);
+
+  const showRewardedAd = async (): Promise<boolean> => {
+    return new Promise(async (resolve) => {
+      const options: RewardAdOptions = {
+        adId: 'ca-app-pub-3940256099942544/5224354917', // Test Ad Unit ID
+      };
+
+      const rewardListener = await AdMob.addListener(RewardAdPluginEvents.Rewarded, (reward) => {
+        console.log('Reward received:', reward);
+        rewardListener.remove();
+        resolve(true);
+      });
+
+      const failListener = await AdMob.addListener(RewardAdPluginEvents.FailedToLoad, (error) => {
+        console.error('Ad failed to load:', error);
+        failListener.remove();
+        resolve(true); 
+      });
+
+      AdMob.prepareRewardVideoAd(options).then(() => {
+        AdMob.showRewardVideoAd();
+      }).catch((err: any) => {
+        console.error('Ad error:', err);
+        resolve(true); 
+      });
+    });
+  };
+
+  const handleHint = async () => {
+    const earned = await showRewardedAd();
+    if (earned) {
+      // Trigger Agent to give a strategic hint
+      // We can use the onAction or just set a prompt/state
+      console.log('Hint requested after ad');
+      // For now, let's just log it. We could trigger the Agent's best move tool.
+      const bestMove = await engineRef.current?.getBestMove(game.fen(), currentLevel.skill, currentLevel.depth);
+      if (bestMove) {
+        setStatus(`Hint: Best move is ${bestMove.from} to ${bestMove.to}`);
+        // Highlight the move briefly? 
+        setSelectedSquare(bestMove.from);
+        setValidMoves([bestMove.to]);
+      }
+    }
+  };
 
   // Initialize Engine
   useEffect(() => {
@@ -765,6 +818,13 @@ function App() {
             <h1>GRANDMASTER 3D</h1>
           </div>
           <div className="top-actions">
+            <button className="icon-btn" onClick={handleHint} aria-label="Get Hint" title="Get Hint (Watch Ad)">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A5 5 0 0 0 8 8c0 1.3.5 2.6 1.5 3.5.8.8 1.3 1.5 1.5 2.5" />
+                <path d="M9 18h6" />
+                <path d="M10 22h4" />
+              </svg>
+            </button>
              <button className="icon-btn" onClick={toggleFullscreen} aria-label="Toggle Fullscreen">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
