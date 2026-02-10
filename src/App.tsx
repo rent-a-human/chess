@@ -13,6 +13,11 @@ import Agent, { type AppConfig } from 'agent-neo';
 
 const STORAGE_KEY = 'chess3d_game_state';
 
+// Extend AppConfig locally if the dependency version is behind
+interface LocalAppConfig extends AppConfig {
+  keepAlive?: boolean;
+}
+
 function App() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -272,8 +277,9 @@ function App() {
   };
 
   // Agent Configuration with Local Handlers
-   const agentConfig: AppConfig = {
+   const agentConfig: LocalAppConfig = {
     showStopButton: true,
+    keepAlive: true,
     agentName: 'Boris',
     // preset: 'chess', // REMOVED: Injected directly below
     actionLabel: 'New Game',
